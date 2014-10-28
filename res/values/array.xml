@@ -2,7 +2,7 @@
 <resources>
 
     <string-array name="degrees">
-        <item>4.75º</item>
+        <item>4.25º</item>
         <item>1º</item>
         <item>0.75º</item>
         <item>0.5º</item>

@@ -24,17 +24,17 @@
 
 package ioio.bar;
 
-import java.io.IOException;
-import java.io.InputStream;
-
 import ioio.lib.api.DigitalOutput;
-import ioio.lib.api.IOIO;
 import ioio.lib.api.Sequencer;
 import ioio.lib.api.Uart;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.android.IOIOActivity;
+
+import java.io.IOException;
+import java.io.InputStream;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -50,53 +50,6 @@ import android.view.MotionEvent;
 import android.view.View;
 
 public class BARActivity extends IOIOActivity implements SensorEventListener {
-
-	public static final float STEPS_FREQ = 62500;
-
-	// ---
-	// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
-	// in this array is important because it is used to define cues for those channels in the Sequencer.ChannelCue[] array.
-	// ---
-	private Sequencer.ChannelConfig[] _channelConfig = { 
-			new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(7)),  // LEFT STEP
-			new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(18)), 				 // LEFT DIR
-			new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(13)), // RIGHT STEP
-			new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(14))			         // RIGHT DIR 
-	}; 
-
-	// ---
-	// FM (frequency modulation) speed channels are useful for driving stepper motors in speed control mode (i.e. how fast it's moving).
-	// ---
-	private Sequencer.ChannelCueFmSpeed _leftSteps = new Sequencer.ChannelCueFmSpeed();
-	private Sequencer.ChannelCueFmSpeed _rightSteps = new Sequencer.ChannelCueFmSpeed();
-	
-	// ---
-	// A cue binary channel is to drive the pin "low" "high".
-	// ---
-	private Sequencer.ChannelCueBinary _leftDir = new Sequencer.ChannelCueBinary();
-	private Sequencer.ChannelCueBinary _rightDir = new Sequencer.ChannelCueBinary();
-	
-	// ---
-	// The order and type of elements in this array must match the Sequencer.ChannelConfig[] array.
-	// ---
-	private Sequencer.ChannelCue[] _channelCue = { _leftSteps, _leftDir, _rightSteps, _rightDir };
-	
-	/*
-	M0     -> IOIO:  3 / Shield: 3
-	M1     -> IOIO: 24 / Shield: 4
-	SLEEP  -> IOIO:  6 / Shield: 5
-	STEP   -> IOIO:  7 / Shield: 6
-	DIR    -> IOIO: 18 / Shield: 7
-	
-	M0     -> IOIO: 10  / Shield: 9
-	M1     -> IOIO: 11 / Shield: 10
-	SLEEP  -> IOIO: 12 / Shield: 11
-	STEP   -> IOIO: 13 / Shield: 12
-	DIR    -> IOIO: 14 / Shield: 13
-	 */
-	
-	private int[] _leftPins = { 3, 24, 6 };
-	private int[] _rightPins = { 10, 11, 12 };
 
 	private PowerManager.WakeLock _wakeLock;
 	private SensorManager _sensorManager;
@@ -162,37 +115,6 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		super.onActivityResult(requestCode, resultCode, data);
 		_offsetIndex = Integer.parseInt(_sharedPreferences.getString(getString(R.string.color_key), "2"));
 	}
-
-	private class DRV8834 {
-		private final Sequencer.ChannelCueBinary _dir;
-		private final Sequencer.ChannelCueFmSpeed _step;
-		private final DigitalOutput _sleep;
-
-		public DRV8834(IOIO ioio, int[] pins, Sequencer.ChannelCueFmSpeed step, Sequencer.ChannelCueBinary dir) throws ConnectionLostException {
-			this._dir = dir;
-			this._step = step;
-			step.period = 0;
-
-			// NOTE: The default state of the ENBL pin is to enable the driver, so this pin can be left disconnected.
-			
-			ioio.openDigitalOutput(pins[0], true); // M0
-			ioio.openDigitalOutput(pins[1], true); // M1
-			
-			_sleep = ioio.openDigitalOutput(pins[2], false);
-		}
-
-		public void setEnable(boolean en) throws ConnectionLostException {
-			_sleep.write(en);
-		}
-		
-		public void setSpeed(float speed) throws ConnectionLostException {
-			_dir.value = (speed > 0);
-			speed = Math.abs(speed) * 10000;
-			if (speed < 50) speed = 50;
-			if (speed > 3620) speed = 3620;
-			_step.period = Math.round(STEPS_FREQ / speed);
-		}
-	}
 	
 	
 	class BalancerLooper extends BaseIOIOLooper {
@@ -203,10 +125,42 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		private Uart _uart;
 		private InputStream _uartInput;
 		
-		int _inByte = 0;      // in-comming serial byte
-		int _inbyteIndex = 0; // in-comming bytes counter
+		int _inByte = 0;      // in-coming serial byte
+		int _inbyteIndex = 0; // in-coming bytes counter
 		char _oscControl;     // control in TouchOSC sending the message
 		int[] _oscMsg = new int[11]; // buffer for incoming OSC packet
+		
+		
+		// ---
+		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
+		// in this array is important because it is used to define cues for those channels in the Sequencer.ChannelCue[] array.
+		// ---
+		private Sequencer.ChannelConfig[] _channelConfig = { 
+				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(7)),  // LEFT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(18)), 				 // LEFT DIR
+				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(13)), // RIGHT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(14))			         // RIGHT DIR 
+		}; 
+
+		// ---
+		// FM (frequency modulation) speed channels are useful for driving stepper motors in speed control mode (i.e. how fast it's moving).
+		// ---
+		private Sequencer.ChannelCueFmSpeed _leftSteps = new Sequencer.ChannelCueFmSpeed();
+		private Sequencer.ChannelCueFmSpeed _rightSteps = new Sequencer.ChannelCueFmSpeed();
+		
+		// ---
+		// A cue binary channel is to drive the pin "low" "high".
+		// ---
+		private Sequencer.ChannelCueBinary _leftDir = new Sequencer.ChannelCueBinary();
+		private Sequencer.ChannelCueBinary _rightDir = new Sequencer.ChannelCueBinary();
+		
+		// ---
+		// The order and type of elements in this array must match the Sequencer.ChannelConfig[] array.
+		// ---
+		private Sequencer.ChannelCue[] _channelCue = { _leftSteps, _leftDir, _rightSteps, _rightDir };
+		
+		private int[] _leftPins = { 3, 24, 6 };
+		private int[] _rightPins = { 10, 11, 12 };
 
 		@Override
 		public void setup() throws ConnectionLostException {
@@ -223,7 +177,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void loop() throws ConnectionLostException {
 			try {
-				_inByte = _uartInput.read();
+//				_inByte = _uartInput.read();
 				
 				float speed = 0;
 			    if (_tiltAngle < BALANCE_LIMIT && _tiltAngle > -BALANCE_LIMIT) {
@@ -243,9 +197,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				Thread.sleep(SLEEP_MS);
 			} catch (InterruptedException e) {
 				ioio_.disconnect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			} 
+//			catch (IOException e) {
+//				e.printStackTrace();
+//			}
 		}
 
 		@Override
@@ -275,7 +230,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	}
 	
 	private float[] _offset = { 
-			0.0829031395f, // [0] 4.75º
+			0.0741764932f, // [0] 4.25º
 			0.0174532925f, // [1] 1º
 			0.0130899694f, // [2] 0.75º
 			0.00872664626f,// [3] 0.5º
