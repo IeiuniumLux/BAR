@@ -24,17 +24,14 @@
 
 package ioio.bar;
 
+import ioio.bar.UARTServer.OSCListener;
+import ioio.lib.api.AnalogInput;
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.Sequencer;
-import ioio.lib.api.Uart;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.android.IOIOActivity;
-
-import java.io.IOException;
-import java.io.InputStream;
-
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -45,12 +42,15 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class BARActivity extends IOIOActivity implements SensorEventListener {
 
+	private static final String _TAG = "BARActivity";
+	
 	private PowerManager.WakeLock _wakeLock;
 	private SensorManager _sensorManager;
 	private Sensor _rotationVectorSensor;
@@ -117,19 +117,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	}
 	
 	
-	class BalancerLooper extends BaseIOIOLooper {
-		private final DRV8834[] _motors = new DRV8834[2];
-		private static final int SLEEP_MS = 2;
-		private Sequencer _sequencer;
-		
-		private Uart _uart;
-		private InputStream _uartInput;
-		
-		int _inByte = 0;      // in-coming serial byte
-		int _inbyteIndex = 0; // in-coming bytes counter
-		char _oscControl;     // control in TouchOSC sending the message
-		int[] _oscMsg = new int[11]; // buffer for incoming OSC packet
-		
+	class BalancerLooper extends BaseIOIOLooper implements OSCListener {
 		
 		// ---
 		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
@@ -161,6 +149,18 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		
 		private int[] _leftPins = { 3, 24, 6 };
 		private int[] _rightPins = { 10, 11, 12 };
+				
+				
+		private final DRV8834[] _motors = new DRV8834[2];
+		private static final int SLEEP_MS = 2;
+		private Sequencer _sequencer;
+		
+//		float _throttle = 0.0f;
+		
+		UARTServer _uart;
+		boolean oneTime = true;
+		
+		private AnalogInput _IRSensor;
 
 		@Override
 		public void setup() throws ConnectionLostException {
@@ -170,53 +170,47 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 			_motors[1] = new DRV8834(ioio_, _rightPins, _rightSteps, _rightDir);
 			_sequencer = ioio_.openSequencer(_channelConfig);
 			
-			_uart = ioio_.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
-			_uartInput = _uart.getInputStream();
+			_uart = new UARTServer(ioio_, this);
+			new Thread(_uart).start();
+			
+			_IRSensor = ioio_.openAnalogInput(44); // A/D 4 shield
 		}
 
 		@Override
-		public void loop() throws ConnectionLostException {
-			try {
-//				_inByte = _uartInput.read();
+		public void loop() throws ConnectionLostException, InterruptedException {
 				
-				float speed = 0;
-			    if (_tiltAngle < BALANCE_LIMIT && _tiltAngle > -BALANCE_LIMIT) {
-			    	speed = _controlOutput;
-			        _motors[0].setEnable(true);
-					_motors[1].setEnable(true);
-			    } else  {	
-			    	_motors[0].setEnable(false);
-					_motors[1].setEnable(false);
-					_lastError = 0;
-					_sequencer.manualStop();
-			    }
-			    _motors[0].setSpeed(-speed);
-				_motors[1].setSpeed(speed);
-				_sequencer.manualStart(_channelCue);
-				
-				Thread.sleep(SLEEP_MS);
-			} catch (InterruptedException e) {
-				ioio_.disconnect();
-			} 
-//			catch (IOException e) {
-//				e.printStackTrace();
-//			}
+			Log.e("IR", String.valueOf(_IRSensor.getVoltage()));
+			
+			
+			float speed = 0;
+		    if (_tiltAngle < BALANCE_LIMIT && _tiltAngle > -BALANCE_LIMIT) {
+		    	speed = _controlOutput;
+//			    	Log.e(_TAG, String.valueOf(speed));
+		        _motors[0].setEnable(true);
+				_motors[1].setEnable(true);
+		    } else  {	
+		    	_motors[0].setEnable(false);
+				_motors[1].setEnable(false);
+				_lastError = 0;
+				_sequencer.manualStop();
+		    }
+		    _motors[0].setSpeed(-speed);
+			_motors[1].setSpeed(speed);
+			_sequencer.manualStart(_channelCue);
+			
+			Thread.sleep(SLEEP_MS);
 		}
 
 		@Override
 		public void disconnected() {
-			_sequencer.close();
-			try {
-				if (_uartInput != null)
-					_uartInput.close();
-				if (_uart != null)
-					_uart.close();
-			} catch (IOException e) {
-				// Nothing to do at this point!
-			} finally {
-				_uartInput = null;
-				_uart = null;
-			}
+			_sequencer.close();			
+			_uart.abort();
+			Log.e(_TAG, "IOIO disconnected");
+		}
+		
+		@Override
+		public void onLine(float throttle) {
+			Log.e("onLine", String.valueOf(throttle));
 		}
 	}
 
