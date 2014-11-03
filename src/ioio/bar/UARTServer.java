@@ -15,7 +15,7 @@ public class UARTServer implements Runnable {
 	private static final String _TAG = "UARTServer";
 	
 	interface OSCListener {
-		public void onLine(float throttle);
+		public void onValueChanged(char oscControl, float value);
 	}
 
 	private OSCListener _listener;
@@ -81,20 +81,18 @@ public class UARTServer implements Runnable {
 					ByteBuffer byteBuffer = ByteBuffer.allocate(byte_array.length);
 					byteBuffer.put(byte_array);
 
-					float _throttle = getOSCValue(byteBuffer.array());
-
-					Log.e("array", String.valueOf(_throttle));
+					float value = getOSCValue(byteBuffer.array());
 					
-					_listener.onLine(_throttle);
+					_listener.onValueChanged(_oscControl, value);
 
-					switch (_oscControl) {
-					case ('M'): // Motor
-						break;
-					case ('S'): // Switch
-						break;
-					case ('W'): // Wheels
-						break;
-					}
+//					switch (_oscControl) {
+//					case ('M'): // Motor
+//						break;
+//					case ('S'): // Switch
+//						break;
+//					case ('W'): // Wheels
+//						break;
+//					}
 				}
 			}
 		} catch (IOException e) {

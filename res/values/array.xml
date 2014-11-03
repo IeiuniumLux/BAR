@@ -2,11 +2,11 @@
 <resources>
 
     <string-array name="degrees">
-        <item>4.25º</item>
+        <item>4º</item>
+        <item>3.75º</item>
+        <item>3.5º</item>
+        <item>3.25º</item>
         <item>1º</item>
-        <item>0.75º</item>
-        <item>0.5º</item>
-        <item>0.25º</item>
     </string-array>
     <string-array name="degrees_values">
         <item>0</item>

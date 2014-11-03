@@ -100,6 +100,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		_sensorManager.registerListener(this, _rotationVectorSensor, SensorManager.SENSOR_DELAY_GAME);
 		_lastTimestamp = 0;
 		_lastError = 0;
+		_equilibriumErrorSum = 0;
+		_throttle = 0;
 		hideNavigationBar();
 	}
 	
@@ -115,6 +117,9 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		super.onActivityResult(requestCode, resultCode, data);
 		_offsetIndex = Integer.parseInt(_sharedPreferences.getString(getString(R.string.color_key), "2"));
 	}
+	
+	
+	float _throttle = 0.0f;
 	
 	
 	class BalancerLooper extends BaseIOIOLooper implements OSCListener {
@@ -150,22 +155,20 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		private int[] _leftPins = { 3, 24, 6 };
 		private int[] _rightPins = { 10, 11, 12 };
 				
-				
 		private final DRV8834[] _motors = new DRV8834[2];
 		private static final int SLEEP_MS = 2;
 		private Sequencer _sequencer;
-		
-//		float _throttle = 0.0f;
 		
 		UARTServer _uart;
 		boolean oneTime = true;
 		
 		private AnalogInput _IRSensor;
+		private int truePulseCounter = 0;
 
 		@Override
 		public void setup() throws ConnectionLostException {
 			_lastTimestamp = 0;	
-			_integratedError = 0;
+			_equilibriumErrorSum = 0;
 			_motors[0] = new DRV8834(ioio_, _leftPins, _leftSteps, _leftDir);
 			_motors[1] = new DRV8834(ioio_, _rightPins, _rightSteps, _rightDir);
 			_sequencer = ioio_.openSequencer(_channelConfig);
@@ -178,20 +181,31 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 
 		@Override
 		public void loop() throws ConnectionLostException, InterruptedException {
-				
-			Log.e("IR", String.valueOf(_IRSensor.getVoltage()));
 			
+			float sensorValue = (_IRSensor.getVoltage() > 1.1) ? _IRSensor.getVoltage() : 0.0f;
+			
+			if (sensorValue > 0.0f && truePulseCounter < 7) {
+				truePulseCounter++;
+			} else if (sensorValue == 0.0f && truePulseCounter > 0) {
+				truePulseCounter--;
+			} 
+			
+//			_throttle = (truePulseCounter > 6) ? sensorValue * 0.018f : 0.0f;
+			
+//			_throttle = (truePulseCounter > 6) ? proximityDisplacement(sensorValue, 1.1f, 0.0065f, 0.03f) : 0.0f;
+
+//			Log.e("IR", String.valueOf(_throttle));
 			
 			float speed = 0;
 		    if (_tiltAngle < BALANCE_LIMIT && _tiltAngle > -BALANCE_LIMIT) {
 		    	speed = _controlOutput;
-//			    	Log.e(_TAG, String.valueOf(speed));
 		        _motors[0].setEnable(true);
 				_motors[1].setEnable(true);
 		    } else  {	
 		    	_motors[0].setEnable(false);
 				_motors[1].setEnable(false);
 				_lastError = 0;
+				_throttle = 0;
 				_sequencer.manualStop();
 		    }
 		    _motors[0].setSpeed(-speed);
@@ -204,13 +218,20 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void disconnected() {
 			_sequencer.close();			
-			_uart.abort();
 			Log.e(_TAG, "IOIO disconnected");
 		}
 		
 		@Override
-		public void onLine(float throttle) {
-			Log.e("onLine", String.valueOf(throttle));
+		public void onValueChanged(char oscControl, float value) {
+			switch (oscControl) {
+			case ('M'): // Motor
+				_throttle = value;
+				break;
+			case ('S'): // Switch
+				break;
+			case ('W'): // Wheels
+				break;
+			}
 		}
 	}
 
@@ -224,14 +245,14 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	}
 	
 	private float[] _offset = { 
-			0.0741764932f, // [0] 4.25º
-			0.0174532925f, // [1] 1º
-			0.0130899694f, // [2] 0.75º
-			0.00872664626f,// [3] 0.5º
-			0.00436332313f // [4] 0.25º
+			0.0698131701f, // [0] 4º
+			0.0654498469f, // [1] 3.75º
+			0.0610865238f, // [2] 3.5º
+			0.0567232007f, // [3] 3.25º
+			0.0174532925f  // [4] 1º			
 	};
 	
-	private static final float BALANCE_LIMIT = 0.872664626f;  // Shutdown motors @ 50º 
+	private static final float BALANCE_LIMIT = 0.785398163f;  // Shutdown motors @ 45º 
 	
 	private float _kP = 1.49f;
 	private float _kI = 13.9f;
@@ -239,7 +260,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	
 	private volatile float _tiltAngle = 0.0f;
 	private long _lastTimestamp = 0;	
-	private float _integratedError = 0;
+	private float _equilibriumErrorSum = 0;
 	private float _lastError = 0.0f;
 	private volatile float _controlOutput = 0.0f;
 			
@@ -254,21 +275,26 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		        
 				// Roll-Tilt-Angle (landscape mode - 90º degree raised up)
 		        _tiltAngle = (float)((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + 
-		        		quaternion[3] * quaternion[3]) - _offset[_offsetIndex]));
+		        		quaternion[3] * quaternion[3]) - (_offset[_offsetIndex] + _throttle)));
 		        
-		        _controlOutput = pidController(-1 * (_tiltAngle * 0.99f), _tiltAngle, _kP, _kI, _kD, dT);
+		        _controlOutput = equilibriumPID(-1 * (_tiltAngle), _tiltAngle, _kP, _kI, _kD, dT);
 			}
 			_lastTimestamp = event.timestamp;
 		}
 	}
 	
-	private float pidController(float setpoint, float input, float kP, float kI, float kD, float dT) {
+	private float equilibriumPID(float setpoint, float input, float kP, float kI, float kD, float dT) {
 		float error = setpoint - input;
-		_integratedError += 0.99f * error; // low-pass IIR filter
-		_integratedError = constrain(_integratedError, -1, 1);
+		_equilibriumErrorSum += 0.99f * error; // low-pass IIR filter
+		_equilibriumErrorSum = constrain(_equilibriumErrorSum, -1, 1);
 		float derivative = error - _lastError;
 		_lastError = error;
-		return (kP * error + kI * (_integratedError * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
+		return (kP * error + kI * (_equilibriumErrorSum * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
+	}
+	
+	private float proximityDisplacement(float current, float previous, float kP, float kI) {
+		float displacement = current - previous;
+		return (kP * current + kI * displacement * 0.999f);
 	}
 
 	private void hideNavigationBar() {
