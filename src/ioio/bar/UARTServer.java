@@ -70,18 +70,17 @@ public class UARTServer implements Runnable {
 				if (_inByte == 47) {
 					_inbyteIndex = 0; // a new message received so set array index to 0
 				}
-				// ASCII values for M = 0x4D | W = 0x57
-				if (_inbyteIndex == 0 && (_inByte == 0x4D || _inByte == 0x53 || _inByte == 0x57)) {
+				// ASCII values for T = 0x54 | S = 0x57 | B = 42
+				if (_inbyteIndex == 0 && (_inByte == 0x54 || _inByte == 0x53 || _inByte == 0x42)) {
 					switch (_inByte) {
-					case (0x4D): // Motor
-						_oscControl = 'M';
+					case (0x54): // Throttle
+						_oscControl = 'T';
 						break;
-					case (0x53): // Switch
+					case (0x53): // Steering
 						_oscControl = 'S';
-
 						break;
-					case (0x57): // Wheels
-						_oscControl = 'W';
+					case (0x42): // Button
+						_oscControl = 'B';
 						break;
 					default:
 						_oscControl = ' ';

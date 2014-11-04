@@ -58,7 +58,10 @@ public class DRV8834 {
 		step.period = 0;
 
 		// NOTE: The default state of the ENBL pin is to enable the driver, so this pin can be left disconnected.
-		
+		//-------------------------------------------
+		// For 1/8  microstep set M0(Low) + M1(High)
+		// For 1/16 microstep set M0(High) + M1(High)
+		//-------------------------------------------
 		ioio.openDigitalOutput(pins[0], true); // M0
 		ioio.openDigitalOutput(pins[1], true); // M1
 		

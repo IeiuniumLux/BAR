@@ -61,6 +61,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	
 	private float _offset = 0.0f;
 	private float _throttle = 0.0f;
+	private float _steering = 0.0f;
 	private float _proximity = 0.0f;
 
 	@Override
@@ -106,6 +107,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		_lastError = 0.0f;
 		_equilibriumErrorSum = 0.0f;
 		_throttle = 0.0f;
+		_steering = 0.0f;
 		_proximity = 0.0f;
 		hideNavigationBar();
 	}
@@ -207,11 +209,12 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				_motors[1].setEnable(false);
 				_lastError = 0.0f;
 				_throttle = 0.0f;
+				_steering = 0.0f;
 				_proximity = 0.0f;
 				_sequencer.manualStop();
 			}
-			_motors[0].setSpeed(-speed);
-			_motors[1].setSpeed(speed);
+			_motors[0].setSpeed(-speed + _steering);
+			_motors[1].setSpeed(speed + _steering);
 			_sequencer.manualStart(_channelCue);
 
 			Thread.sleep(SLEEP_MS);
@@ -226,12 +229,13 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void onValueChanged(char oscControl, float value) {
 			switch (oscControl) {
-			case ('M'): // Motor
+			case ('T'): // Throttle
 				_throttle = value;
 				break;
-			case ('S'): // Switch
+			case ('S'): // Steering
+				_steering = value;
 				break;
-			case ('W'): // Wheels
+			case ('B'): // Button ON/OFF
 				break;
 			}
 		}
@@ -269,7 +273,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + 
 						quaternion[3] * quaternion[3]) - (_offset + _throttle + _proximity)));
 
-				_controlOutput = equilibriumPID(-1 * (_tiltAngle - (_throttle * 0.5f)), _tiltAngle, _kP, _kI, _kD, dT);
+				_controlOutput = equilibriumPID(-1 * (_tiltAngle - (_throttle * 0.2f)), _tiltAngle, _kP, _kI, _kD, dT);
 			}
 			_lastTimestamp = event.timestamp;
 		}
