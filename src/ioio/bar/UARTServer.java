@@ -1,3 +1,26 @@
+/**
+ * Released under the MIT License (MIT).
+ *
+ * Copyright (c) 2014 Al Bencomo
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package ioio.bar;
 
 import ioio.lib.api.IOIO;
@@ -31,7 +54,6 @@ public class UARTServer implements Runnable {
 	public UARTServer(IOIO ioio, OSCListener listener) {		
 		_listener = listener;
 		_ioio = ioio;
-//		new Thread(this).start();
 	}
 
 	@Override
@@ -84,29 +106,19 @@ public class UARTServer implements Runnable {
 					float value = getOSCValue(byteBuffer.array());
 					
 					_listener.onValueChanged(_oscControl, value);
-
-//					switch (_oscControl) {
-//					case ('M'): // Motor
-//						break;
-//					case ('S'): // Switch
-//						break;
-//					case ('W'): // Wheels
-//						break;
-//					}
 				}
 			}
 		} catch (IOException e) {
-			Log.e("IOException", e.getMessage());
+			Log.e(_TAG, e.getMessage());
 			abort();
 		} catch (ConnectionLostException e) {
-			Log.e("ConnectionLostException", e.getMessage());
+			Log.e(_TAG, e.getMessage());
 			abort();
 		}
 	}
 	
 	void abort() {
 		try {
-			Log.e(_TAG, "ABORTED");
 			if (_uartInput != null)
 				_uartInput.close();
 			if (_uart != null)

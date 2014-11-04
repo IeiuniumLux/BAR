@@ -4,7 +4,7 @@
     <string name="app_name">BAR</string>
     <string name="settings">Settings</string>
     <string name="settings_key">settingsKey</string>
-    <string name="color_key">colorKey</string>
+    <string name="degrees_key">degreesKey</string>
     <string name="degrees_offset">Degrees offset</string>
 
 </resources>
