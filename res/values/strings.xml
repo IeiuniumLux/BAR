@@ -6,5 +6,5 @@
     <string name="settings_key">settingsKey</string>
     <string name="degrees_key">degreesKey</string>
     <string name="degrees_offset">Degrees offset</string>
-
+	<string name="ir_key">irKey</string>
 </resources>

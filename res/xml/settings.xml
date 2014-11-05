@@ -22,6 +22,12 @@
             bar:maxValue="6"
             bar:minValue="0"
             bar:units="º" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="@string/ir_key"
+            android:summary="Turn On/Off"
+            android:title="Front IR sensor" />
     </PreferenceCategory>
 
 </PreferenceScreen>

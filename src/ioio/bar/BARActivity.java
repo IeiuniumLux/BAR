@@ -51,18 +51,20 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 
 	private static final String _TAG = "BARActivity";
 	private static final float DEGREES_RADIANS = 0.0174532925f; // Degrees to Radians
-	private static final float BALANCE_LIMIT = 0.785398163f;    // Shutdown motors @ 45º
+	private static final float BALANCE_LIMIT = 0.785398163f; // Shutdown motors @ 45º
 
 	private PowerManager.WakeLock _wakeLock;
 	private SensorManager _sensorManager;
 	private Sensor _rotationVectorSensor;
 	private GestureDetector _gestureDetector;
 	private SharedPreferences _sharedPreferences;
-	
+
 	private float _offset = 0.0f;
 	private float _throttle = 0.0f;
 	private float _steering = 0.0f;
 	private float _proximity = 0.0f;
+
+	private boolean _IRSensorEnable = false;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -72,6 +74,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 		_sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 		_offset = _sharedPreferences.getFloat(getString(R.string.degrees_key), 0.0f) * DEGREES_RADIANS;
+		_IRSensorEnable = _sharedPreferences.getBoolean(getString(R.string.ir_key), false);
 
 		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
 		_wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "BAR");
@@ -122,10 +125,9 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
-		// _offsetIndex = Integer.parseInt(_sharedPreferences.getString(getString(R.string.degrees_key), "2"));
 		_offset = _sharedPreferences.getFloat(getString(R.string.degrees_key), 0.0f) * DEGREES_RADIANS;
+		_IRSensorEnable = _sharedPreferences.getBoolean(getString(R.string.ir_key), false);
 	}
-	
 
 	class BalancerLooper extends BaseIOIOLooper implements OSCListener {
 
@@ -133,11 +135,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
 		// in this array is important because it is used to define cues for those channels in the Sequencer.ChannelCue[] array.
 		// ---
-		private Sequencer.ChannelConfig[] _channelConfig = { 
-				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(7)), 	// LEFT STEP
-				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(18)), 					// LEFT DIR
-				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(13)), 	// RIGHT STEP
-				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(14)) 					// RIGHT DIR
+		private Sequencer.ChannelConfig[] _channelConfig = { new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(7)), // LEFT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(18)), // LEFT DIR
+				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(13)), // RIGHT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(14)) // RIGHT DIR
 		};
 
 		// ---
@@ -187,17 +188,15 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void loop() throws ConnectionLostException, InterruptedException {
 
-			float sensorValue = (_IRSensor.getVoltage() > 1.1) ? _IRSensor.getVoltage() : 0.0f;
-
-			if (sensorValue > 0.0f && truePulseCounter < 7) {
-				truePulseCounter++;
-			} else if (sensorValue == 0.0f && truePulseCounter > 0) {
-				truePulseCounter--;
+			if (_IRSensorEnable) {
+				float sensorValue = (_IRSensor.getVoltage() > 1.1) ? _IRSensor.getVoltage() : 0.0f;
+				if (sensorValue > 0.0f && truePulseCounter < 7) {
+					truePulseCounter++;
+				} else if (sensorValue == 0.0f && truePulseCounter > 0) {
+					truePulseCounter--;
+				}
+				_proximity = (truePulseCounter > 6) ? proximityDisplacement(sensorValue, 1.1f, 0.0065f, 0.03f) : 0.0f;
 			}
-
-			// _proximity = (truePulseCounter > 6) ? sensorValue * 0.018f : 0.0f;
-
-			_proximity = (truePulseCounter > 6) ? proximityDisplacement(sensorValue, 1.1f, 0.0065f, 0.03f) : 0.0f;
 
 			float speed = 0;
 			if (_tiltAngle < BALANCE_LIMIT && _tiltAngle > -BALANCE_LIMIT) {
@@ -270,8 +269,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				SensorManager.getQuaternionFromVector(quaternion, event.values);
 
 				// Roll-Tilt-Angle (landscape mode - 90º degree raised up)
-				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + 
-						quaternion[3] * quaternion[3]) - (_offset + _throttle + _proximity)));
+				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]) - (_offset + _throttle + _proximity)));
 
 				_controlOutput = equilibriumPID(-1 * (_tiltAngle - (_throttle * 0.2f)), _tiltAngle, _kP, _kI, _kD, dT);
 			}
