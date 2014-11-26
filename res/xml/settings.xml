@@ -14,7 +14,7 @@
             android:key="@string/degrees_key"
             android:title="@string/degrees_offset" />
         -->
-        <ioio.bar.SeekBarPreference
+        <ioio.bar.settings.SeekBarPreference
             android:key="@string/degrees_key"
             android:persistent="true"
             android:title="@string/degrees_offset"

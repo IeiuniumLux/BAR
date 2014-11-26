@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package ioio.bar;
+package ioio.bar.settings;
 
+import ioio.bar.R;
 import android.content.Context;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;

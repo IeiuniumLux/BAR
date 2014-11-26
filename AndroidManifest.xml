@@ -48,7 +48,7 @@
                 android:resource="@xml/accessory_filter" />
         </activity>
         <activity
-            android:name=".SettingsActivity"
+            android:name="ioio.bar.settings.SettingsActivity"
             android:label="@string/settings" >
             <intent-filter>
                 <category android:name="android.intent.category.PREFERENCE" />

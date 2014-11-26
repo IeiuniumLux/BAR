@@ -26,7 +26,7 @@
  * authors and should not be interpreted as representing official policies, either expressed
  * or implied.
  */
-package ioio.bar;
+package ioio.bar.drivers;
 
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.IOIO;

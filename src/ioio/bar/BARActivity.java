@@ -24,7 +24,12 @@
 
 package ioio.bar;
 
-import ioio.bar.UARTServer.OSCListener;
+import ioio.bar.drivers.DRV8834;
+import ioio.bar.protocols.UARTServer;
+import ioio.bar.protocols.UARTServer.UARTListener;
+import ioio.bar.protocols.UDPServer;
+import ioio.bar.protocols.UDPServer.UDPListener;
+import ioio.bar.settings.SettingsActivity;
 import ioio.lib.api.AnalogInput;
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.Sequencer;
@@ -32,6 +37,13 @@ import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.android.IOIOActivity;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.DatagramPacket;
+import java.nio.ByteBuffer;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -47,11 +59,11 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
-public class BARActivity extends IOIOActivity implements SensorEventListener {
+public class BARActivity extends IOIOActivity implements SensorEventListener, UDPListener {
 
 	private static final String _TAG = "BARActivity";
 	private static final float DEGREES_RADIANS = 0.0174532925f; // Degrees to Radians
-	private static final float BALANCE_LIMIT = 0.785398163f; // Shutdown motors @ 45º
+	private static final float BALANCE_LIMIT = 0.610865238f; // Shutdown motors @ 35º
 
 	private PowerManager.WakeLock _wakeLock;
 	private SensorManager _sensorManager;
@@ -64,7 +76,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 	private float _steering = 0.0f;
 	private float _proximity = 0.0f;
 
-	private boolean _IRSensorEnable = false;
+	private boolean _IRSensorEnable = false;	
+	private UDPServer _udpServer;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -88,6 +101,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				startActivityForResult(new Intent(getApplicationContext(), SettingsActivity.class), 0);
 			}
 		});
+		_udpServer = new UDPServer(2000, this);
 	}
 
 	@Override
@@ -108,20 +122,31 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		_sensorManager.registerListener(this, _rotationVectorSensor, SensorManager.SENSOR_DELAY_GAME);
 		_lastTimestamp = 0L;
 		_lastError = 0.0f;
-		_equilibriumErrorSum = 0.0f;
+		_errorSum = 0.0f;
 		_throttle = 0.0f;
 		_steering = 0.0f;
 		_proximity = 0.0f;
 		hideNavigationBar();
 	}
+	
+	@Override
+	protected void onPause() {
+	    super.onPause();
+	    _sensorManager.unregisterListener(this);
+	}
 
 	@Override
 	protected void onStop() {
 		_wakeLock.release();
-		_sensorManager.unregisterListener(this);
 		super.onStop();
 	}
-
+	
+	@Override
+	protected void onDestroy() {
+		_udpServer.abort();
+		super.onDestroy();
+	}
+	
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
@@ -129,7 +154,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		_IRSensorEnable = _sharedPreferences.getBoolean(getString(R.string.ir_key), false);
 	}
 
-	class BalancerLooper extends BaseIOIOLooper implements OSCListener {
+	class BalancerLooper extends BaseIOIOLooper implements UARTListener {
 
 		// ---
 		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
@@ -165,7 +190,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		private static final int SLEEP_MS = 2;
 		private Sequencer _sequencer;
 
-		UARTServer _uart;
+		UARTServer _uart = null;
 		boolean oneTime = true;
 
 		private AnalogInput _IRSensor;
@@ -174,7 +199,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void setup() throws ConnectionLostException {
 			_lastTimestamp = 0;
-			_equilibriumErrorSum = 0;
+			_errorSum = 0;
 			_motors[0] = new DRV8834(ioio_, _leftPins, _leftSteps, _leftDir);
 			_motors[1] = new DRV8834(ioio_, _rightPins, _rightSteps, _rightDir);
 			_sequencer = ioio_.openSequencer(_channelConfig);
@@ -212,8 +237,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				_proximity = 0.0f;
 				_sequencer.manualStop();
 			}
-			_motors[0].setSpeed(-speed + _steering);
-			_motors[1].setSpeed(speed + _steering);
+			_motors[0].setSpeed(-speed - _steering);
+			_motors[1].setSpeed(speed - _steering);
 			_sequencer.manualStart(_channelCue);
 
 			Thread.sleep(SLEEP_MS);
@@ -222,20 +247,76 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		@Override
 		public void disconnected() {
 			_sequencer.close();
+			if (_uart != null) {
+				_uart.abort();
+			}
 			Log.e(_TAG, "IOIO disconnected");
 		}
 
 		@Override
-		public void onValueChanged(char oscControl, float value) {
-			switch (oscControl) {
-			case ('T'): // Throttle
-				_throttle = value;
-				break;
-			case ('S'): // Steering
-				_steering = value;
-				break;
-			case ('B'): // Button ON/OFF
-				break;
+		public void onInputStreamReceived(InputStream inputStream) {
+			int _inByteIndex = -1; 		// in-coming bytes counter
+			char oscControl; 			// control in TouchOSC sending the message
+			int[] oscMsg = new int[11]; // buffer for incoming OSC packet
+			
+			try {
+				int inByte = inputStream.read();
+				
+				// An OSC address pattern is a string beginning with the character forward slash '/'
+				if (inByte == 47) {
+					_inByteIndex = 0; // a new message received so set array index to 0
+					inByte = inputStream.read();
+				}
+				// Decimal ASCII values for T = 84 | S = 83 | B = 66
+				if (_inByteIndex == 0 && (inByte == 84 || inByte == 83 || inByte == 66)) {
+					switch (inByte) {
+					case (84): // Throttle
+						oscControl = 'T';
+						break;
+					case (83): // Steering
+						oscControl = 'S';
+						break;
+					case (66): // Button
+						oscControl = 'B';
+						break;
+					default:
+						oscControl = ' ';
+					}
+					
+					for(; _inByteIndex < 10; _inByteIndex++) {
+						inByte = inputStream.read();
+						oscMsg[_inByteIndex] = inByte; // add the byte to the array
+					}
+					
+					if (_inByteIndex == 10) { // end of the OSC message
+						byte[] byte_array = new byte[4];
+						byte_array[0] = (byte) oscMsg[9]; // reverse bytes order to decode message
+						byte_array[1] = (byte) oscMsg[8];
+						byte_array[2] = (byte) oscMsg[7];
+						byte_array[3] = (byte) oscMsg[6];
+						ByteBuffer byteBuffer = ByteBuffer.allocate(byte_array.length);
+						byteBuffer.put(byte_array);
+						
+						float value = getOSCValue(byteBuffer.array());
+						
+						switch (oscControl) {
+						case ('T'): // Throttle
+							_throttle = value;
+							break;
+						case ('S'): // Steering
+							_steering = value;
+							break;
+						case ('B'): // Button ON/OFF
+							break;
+						}
+					}
+				}
+			} catch (IOException e) {
+				try {
+					inputStream.close();
+				} catch (IOException e1) {
+				}
+				Log.e("onInputStreamReceived()", e.getMessage());
 			}
 		}
 	}
@@ -255,9 +336,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 
 	private volatile float _tiltAngle = 0.0f;
 	private long _lastTimestamp = 0L;
-	private float _equilibriumErrorSum = 0.0f;
+	private float _errorSum = 0.0f;
 	private float _lastError = 0.0f;
 	private volatile float _controlOutput = 0.0f;
+	
 
 	@Override
 	public void onSensorChanged(SensorEvent event) {
@@ -269,21 +351,58 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 				SensorManager.getQuaternionFromVector(quaternion, event.values);
 
 				// Roll-Tilt-Angle (landscape mode - 90º degree raised up)
-				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]) - (_offset + _throttle + _proximity)));
+				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + 
+						quaternion[3] * quaternion[3]) - (_offset + _proximity)));
 
-				_controlOutput = equilibriumPID(-1 * (_tiltAngle - (_throttle * 0.2f)), _tiltAngle, _kP, _kI, _kD, dT);
+				/* ----------------------- OTHER MODES ---------------------------------------------
+				// Pitch-Tilt-Angle (portrait mode - device flat on its back)
+				_tiltAngle = (float)(Math.atan2(2*(quaternion[2] * quaternion[3] + quaternion[0] * quaternion[1]), 
+						quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]) - _offset);  
+				
+				// Roll-Tilt-Angle (landscape mode - device flat on its back )
+				_tiltAngle = (float)(Math.asin(-2*(quaternion[1] * quaternion[3] - quaternion[2] * quaternion[0])) - _offset );
+				------------------------------------------------------------------------------------ */ 
+				
+				_controlOutput = PI((-1 * (_tiltAngle + _throttle)), (_tiltAngle + _throttle), _kP, _kI, dT);
+				
+//				_tiltAngle = (float) ((Math.asin(quaternion[0] * quaternion[0] - quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] + 
+//						quaternion[3] * quaternion[3]) - (_offset + _throttle + _proximity)));
+//
+//				_controlOutput = PID((-1 * (_tiltAngle - (_throttle * 0.2f))), _tiltAngle, _kP, _kI, _kD, dT);
+				
+//				try {
+//					_sender.write(String.valueOf(_tiltAngle) + "\n", getApplicationContext());
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+
 			}
 			_lastTimestamp = event.timestamp;
 		}
 	}
 
-	private float equilibriumPID(float setpoint, float input, float kP, float kI, float kD, float dT) {
+	private float PID(float setpoint, float input, float kP, float kI, float kD, float dT) {
 		float error = setpoint - input;
-		_equilibriumErrorSum += 0.99f * error; // low-pass IIR filter
-		_equilibriumErrorSum = constrain(_equilibriumErrorSum, -1, 1);
+		_errorSum += 0.99f * error; // low-pass IIR filter
+		_errorSum = constrain(_errorSum, -1, 1);
 		float derivative = error - _lastError;
 		_lastError = error;
-		return (kP * error + kI * (_equilibriumErrorSum * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
+		return (kP * error + kI * (_errorSum * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
+	}
+	
+	private float PI(float setpoint, float input, float kP, float kI, float dT) {
+		float error = setpoint - input;
+		_errorSum += 0.99f * error; // low-pass IIR filter
+		_errorSum = constrain(_errorSum, -1, 1);
+		return (kP * error + kI * (_errorSum * dT * 1e-9f));
+	}
+	
+	private float PD(float setpoint, float input, float kP, float kD, float dT) {
+		float error = setpoint - input;
+		float derivative = error - _lastError;
+		_lastError = error;
+		return (kP * error + kD * (derivative / dT * 1e-9f));
 	}
 
 	private float proximityDisplacement(float current, float previous, float kP, float kI) {
@@ -301,5 +420,81 @@ public class BARActivity extends IOIOActivity implements SensorEventListener {
 		if (value > max)
 			return max;
 		return value;
+	}
+
+	@Override
+	public void onPacketReceived(DatagramPacket packet) {
+		int _inByteIndex = -1; 		// in-coming bytes counter
+		char oscControl; 			// control in TouchOSC sending the message
+		int[] oscMsg = new int[11]; // buffer for incoming OSC packet
+
+		try {
+			InputStream inputStream = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+			int inByte = inputStream.read();
+
+			// An OSC address pattern is a string beginning with the character forward slash '/'
+			if (inByte == 47) {
+				_inByteIndex = 0; // a new message received so set array index to 0
+				inByte = inputStream.read();
+			}
+			// Decimal ASCII values for T = 84 | S = 83 | B = 66
+			if (_inByteIndex == 0 && (inByte == 84 || inByte == 83 || inByte == 66)) {
+				switch (inByte) {
+				case (84): // Throttle
+					oscControl = 'T';
+					break;
+				case (83): // Steering
+					oscControl = 'S';
+					break;
+				case (66): // Button
+					oscControl = 'B';
+					break;
+				default:
+					oscControl = ' ';
+				}
+
+				for (; _inByteIndex < 10; _inByteIndex++) {
+					inByte = inputStream.read();
+					oscMsg[_inByteIndex] = inByte; // add the byte to the array
+				}
+				
+				if (_inByteIndex == 10) { // end of the OSC message
+					byte[] byte_array = new byte[4];
+					byte_array[0] = (byte) oscMsg[9]; // reverse bytes order to decode message
+					byte_array[1] = (byte) oscMsg[8];
+					byte_array[2] = (byte) oscMsg[7];
+					byte_array[3] = (byte) oscMsg[6];
+					ByteBuffer byteBuffer = ByteBuffer.allocate(byte_array.length);
+					byteBuffer.put(byte_array);
+					
+					float value = getOSCValue(byteBuffer.array());
+					
+					switch (oscControl) {
+					case ('T'): // Throttle
+						_throttle = value;
+						break;
+					case ('S'): // Steering
+						_steering = value;
+						break;
+					case ('B'): // Button ON/OFF
+						break;
+					}
+				}
+			}
+		} catch (IOException e) {
+			Log.e("onPacketReceived()", e.getMessage());
+		}
+	}
+	
+	private float getOSCValue(byte[] byte_array_4) {
+		int ret = 0;
+		for (int i = 0; i < 4; i++) {
+			int b = (int) byte_array_4[i];
+			if (i < 3 && b < 0) {
+				b = 256 + b;
+			}
+			ret += b << (i * 8);
+		}
+		return Float.intBitsToFloat(ret);
 	}
 }
