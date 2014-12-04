@@ -33,6 +33,7 @@ import ioio.bar.settings.SettingsActivity;
 import ioio.lib.api.AnalogInput;
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.Sequencer;
+import ioio.lib.api.Uart;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
@@ -189,9 +190,9 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		private final DRV8834[] _motors = new DRV8834[2];
 		private static final int SLEEP_MS = 2;
 		private Sequencer _sequencer;
+		private Uart _uart;
 
-		UARTServer _uart = null;
-		boolean oneTime = true;
+		private UARTServer _uartServer = null;
 
 		private AnalogInput _IRSensor;
 		private int truePulseCounter = 0;
@@ -204,8 +205,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			_motors[1] = new DRV8834(ioio_, _rightPins, _rightSteps, _rightDir);
 			_sequencer = ioio_.openSequencer(_channelConfig);
 
-			_uart = new UARTServer(ioio_, this);
-			new Thread(_uart).start();
+			_uart = ioio_.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
+			
+			_uartServer = new UARTServer(_uart, this);
+			new Thread(_uartServer).start();
 
 			_IRSensor = ioio_.openAnalogInput(44); // A/D 4 shield
 		}
@@ -247,8 +250,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		@Override
 		public void disconnected() {
 			_sequencer.close();
-			if (_uart != null) {
-				_uart.abort();
+			if (_uartServer != null) {
+				_uartServer.abort();
 			}
 			Log.e(_TAG, "IOIO disconnected");
 		}
@@ -312,11 +315,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 					}
 				}
 			} catch (IOException e) {
-				try {
-					inputStream.close();
-				} catch (IOException e1) {
-				}
-				Log.e("onInputStreamReceived()", e.getMessage());
+				// Safely and politely ask the UART thread to stop what it is doing
+				Thread.currentThread().interrupt();
 			}
 		}
 	}

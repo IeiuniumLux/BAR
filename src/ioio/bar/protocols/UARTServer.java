@@ -23,55 +23,47 @@
  */
 package ioio.bar.protocols;
 
-import ioio.lib.api.IOIO;
 import ioio.lib.api.Uart;
-import ioio.lib.api.exception.ConnectionLostException;
 
+import java.io.IOException;
 import java.io.InputStream;
 
-import android.util.Log;
-
 public class UARTServer implements Runnable {
-	
+
 	public interface UARTListener {
 		public void onInputStreamReceived(InputStream inputStream);
 	}
 
 	private UARTListener _listener;
 	private Uart _uart;
-	private IOIO _ioio;
+	private InputStream _inputStream;
 
-	public UARTServer(IOIO ioio, UARTListener listener) {		
+	public UARTServer(Uart uart, UARTListener listener) {
 		_listener = listener;
-		_ioio = ioio;
+		_uart = uart;
 	}
 
 	@Override
 	public void run() {
-		try {
-			Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-			_uart = _ioio.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
-			InputStream _inputStream = _uart.getInputStream();
-			while (true) {
-				_listener.onInputStreamReceived(_inputStream);
-			}
-		} catch (ConnectionLostException e) {
-			Log.e("UARTServer", e.getMessage());
-			abort();
+		Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+		_inputStream = _uart.getInputStream();
+		while (!Thread.currentThread().isInterrupted()) {
+			_listener.onInputStreamReceived(_inputStream);
 		}
 	}
-	
+
 	public void abort() {
-//		if (_inputStream != null) {
-//			try {
-//				_inputStream.close();
-//				Log.e("abort()", "CLOSE");
-//			} catch (IOException e) {
-//				Log.e("abort()", e.getMessage());
-//			}
-//		}
-		if (_uart != null) {
-			_uart.close();
+		try {
+			if (_inputStream != null) {
+				_inputStream.close();
+			}
+			if (_uart != null) {
+				_uart.close();
+			}
+		} catch (IOException e) {
+			// Nothing to do at this point!
+		} finally {
+			_inputStream = null;
 			_uart = null;
 		}
 	}
