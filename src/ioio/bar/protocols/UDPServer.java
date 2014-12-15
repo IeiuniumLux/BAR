@@ -23,6 +23,10 @@ public class UDPServer implements Runnable {
 		new Thread(this).start();
 	}
 
+	public void terminate() {
+		Thread.currentThread().interrupt();
+    }
+	
 	@Override
 	public void run() {
 		try {
@@ -31,7 +35,7 @@ public class UDPServer implements Runnable {
 			_socket = new DatagramSocket(_port);
 //			_socket.setBroadcast(rue);
 
-			while (true) {
+			while (!Thread.currentThread().isInterrupted()) {
 				byte[] buffer = new byte[DATAGRAM_SIZE];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				
@@ -43,9 +47,9 @@ public class UDPServer implements Runnable {
 				_listener.onPacketReceived(packet);
 			}
 		} catch (IOException e) {
-			Log.e("UdpServer.run()", e.getMessage());
+			Log.e("UDPServer::run()-IOException", e.getMessage());
 		} catch (ArrayIndexOutOfBoundsException e) {
-			Log.e("UdpServer.run()", "ArrayIndexOutOfBoundsException:  " + e);
+			Log.e("UDPServer::run()-ArrayIndexOutOfBoundsException", "ArrayIndexOutOfBoundsException:  " + e);
 		}
 	}
 	

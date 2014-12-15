@@ -25,6 +25,7 @@ package ioio.bar.settings;
 
 import ioio.bar.R;
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -34,9 +35,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 public class SeekBarPreference extends DialogPreference implements SeekBar.OnSeekBarChangeListener {
-
-	// Namespaces to read attributes
-	private static final String PREFERENCE_NS = "http://schemas.android.com/apk/res/ioio.bar";
 
 	private SeekBar _seekBar;
 	private TextView _valueText;
@@ -51,11 +49,17 @@ public class SeekBarPreference extends DialogPreference implements SeekBar.OnSee
 	public SeekBarPreference(Context context, AttributeSet attrs) {
 		super(context, attrs);
 
-		// Read parameters from attributes
-		_maxValue = attrs.getAttributeFloatValue(PREFERENCE_NS, "maxValue", 6);
-		_minValue = attrs.getAttributeFloatValue(PREFERENCE_NS, "minValue", 0);
-		_defaultValue = attrs.getAttributeFloatValue(PREFERENCE_NS, "degreesValue", 0);
-		_units = attrs.getAttributeValue(PREFERENCE_NS, "units");
+		TypedArray array_of_values  = context.getTheme().obtainStyledAttributes(attrs, R.styleable.SeekBarPreference, 0, 0);
+
+		try {
+			// Read parameters from the attrs.xml file
+			_maxValue = array_of_values.getFloat(R.styleable.SeekBarPreference_maxValue, 6);
+			_minValue = array_of_values.getFloat(R.styleable.SeekBarPreference_minValue, 0);
+			_defaultValue = array_of_values.getFloat(R.styleable.SeekBarPreference_degreesValue, 0);
+			_units = array_of_values.getString(R.styleable.SeekBarPreference_units);
+		} finally {
+			array_of_values.recycle();
+		}
 	}
 
 	@Override

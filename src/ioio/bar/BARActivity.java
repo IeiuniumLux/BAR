@@ -77,8 +77,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 	private float _steering = 0.0f;
 	private float _proximity = 0.0f;
 
-	private boolean _IRSensorEnable = false;	
-	private UDPServer _udpServer;
+	private boolean _irEnable = false;
+	private boolean _uartEnable = false;
+	private UDPServer _udpServer = null;
+	private int _udpPort;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -87,8 +89,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 
 		PreferenceManager.setDefaultValues(this, R.xml.settings, false);
 		_sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-		_offset = _sharedPreferences.getFloat(getString(R.string.degrees_key), 0.0f) * DEGREES_RADIANS;
-		_IRSensorEnable = _sharedPreferences.getBoolean(getString(R.string.ir_key), false);
+		_offset = _sharedPreferences.getFloat("degrees_key", 0.0f) * DEGREES_RADIANS;
+		_irEnable = _sharedPreferences.getBoolean("ir_key", false);
+		_uartEnable = _sharedPreferences.getBoolean("toggle_uart", false);
+		_udpPort = Integer.valueOf(_sharedPreferences.getString("port_number", "2000"));
 
 		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
 		_wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "BAR");
@@ -102,7 +106,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 				startActivityForResult(new Intent(getApplicationContext(), SettingsActivity.class), 0);
 			}
 		});
-		_udpServer = new UDPServer(2000, this);
+		if (!_uartEnable)
+			_udpServer = new UDPServer(_udpPort, this);
 	}
 
 	@Override
@@ -151,8 +156,20 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
-		_offset = _sharedPreferences.getFloat(getString(R.string.degrees_key), 0.0f) * DEGREES_RADIANS;
-		_IRSensorEnable = _sharedPreferences.getBoolean(getString(R.string.ir_key), false);
+		_offset = _sharedPreferences.getFloat("degrees_key", 0.0f) * DEGREES_RADIANS;
+		_irEnable = _sharedPreferences.getBoolean("ir_key", false);
+		_uartEnable = _sharedPreferences.getBoolean("toggle_uart", false);
+		if (_uartEnable) {
+			if (_udpServer != null) {
+				_udpServer.terminate();
+				_udpServer.abort();
+				_udpServer = null;
+			}
+		} else {
+			if (_udpServer == null) {
+				_udpServer = new UDPServer(_udpPort, this);
+			}
+		}
 	}
 
 	class BalancerLooper extends BaseIOIOLooper implements UARTListener {
@@ -205,18 +222,18 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			_motors[1] = new DRV8834(ioio_, _rightPins, _rightSteps, _rightDir);
 			_sequencer = ioio_.openSequencer(_channelConfig);
 
-			_uart = ioio_.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
-			
-			_uartServer = new UARTServer(_uart, this);
-			new Thread(_uartServer).start();
-
+			if (_uartEnable) {
+				_uart = ioio_.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
+				_uartServer = new UARTServer(_uart, this);
+				new Thread(_uartServer).start();
+			}
 			_IRSensor = ioio_.openAnalogInput(44); // A/D 4 shield
 		}
 
 		@Override
 		public void loop() throws ConnectionLostException, InterruptedException {
 
-			if (_IRSensorEnable) {
+			if (_irEnable) {
 				float sensorValue = (_IRSensor.getVoltage() > 1.1) ? _IRSensor.getVoltage() : 0.0f;
 				if (sensorValue > 0.0f && truePulseCounter < 7) {
 					truePulseCounter++;

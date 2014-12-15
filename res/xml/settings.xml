@@ -3,7 +3,7 @@
     xmlns:bar="http://schemas.android.com/apk/res/ioio.bar" >
 
     <PreferenceCategory
-        android:key="@string/settings_key"
+        android:key="settings_key"
         android:title="@string/settings" >
 
         <!--
@@ -15,19 +15,48 @@
             android:title="@string/degrees_offset" />
         -->
         <ioio.bar.settings.SeekBarPreference
-            android:key="@string/degrees_key"
-            android:persistent="true"
+            android:key="degrees_key"
             android:title="@string/degrees_offset"
             bar:degreesValue="0"
             bar:maxValue="6"
             bar:minValue="0"
             bar:units="º" />
 
-        <CheckBoxPreference
+        <SwitchPreference
             android:defaultValue="false"
-            android:key="@string/ir_key"
-            android:summary="Turn On/Off"
-            android:title="Front IR sensor" />
+            android:key="ir_key"
+            android:title="Activate IR sensor" />
+        <SwitchPreference
+            android:defaultValue="false"
+            android:disableDependentsState="true"
+            android:key="toggle_uart"
+            android:summary="@string/uart_quick_toggle_summary"
+            android:title="@string/uart_quick_toggle_title" />
+
+        <PreferenceScreen
+            android:dependency="toggle_uart"
+            android:key="udp_settings"
+            android:title="@string/udp_settings_title" >
+            <EditTextPreference
+                android:defaultValue="192.168.1.84"
+                android:dialogMessage="IP Address:"
+                android:dialogTitle="Set IP Address"
+                android:inputType="number|numberDecimal|text|textNoSuggestions"
+                android:key="ip_address"
+                android:singleLine="true"
+                android:title="IP Address" />
+            <EditTextPreference
+                android:defaultValue="2000"
+                android:dialogMessage="Port:"
+                android:dialogTitle="Set Destination Port"
+                android:inputType="number"
+                android:key="port_number"
+                android:numeric="integer"
+                android:singleLine="true"
+                android:title="Port" />
+
+            <PreferenceScreen />
+        </PreferenceScreen>
     </PreferenceCategory>
 
 </PreferenceScreen>
