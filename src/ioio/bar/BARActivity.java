@@ -25,6 +25,7 @@
 package ioio.bar;
 
 import ioio.bar.drivers.DRV8834;
+import ioio.bar.internal.Arduino;
 import ioio.bar.protocols.UARTServer;
 import ioio.bar.protocols.UARTServer.UARTListener;
 import ioio.bar.protocols.UDPServer;
@@ -178,10 +179,10 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
 		// in this array is important because it is used to define cues for those channels in the Sequencer.ChannelCue[] array.
 		// ---
-		private Sequencer.ChannelConfig[] _channelConfig = { new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(7)), // LEFT STEP
-				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(18)), // LEFT DIR
-				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(13)), // RIGHT STEP
-				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(14)) // RIGHT DIR
+		private Sequencer.ChannelConfig[] _channelConfig = { new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(Arduino.PIN_6)), // LEFT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(Arduino.PIN_7)), // LEFT DIR
+				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(Arduino.PIN_12)), // RIGHT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(Arduino.PIN_13)) // RIGHT DIR
 		};
 
 		// ---
@@ -201,8 +202,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		// ---
 		private Sequencer.ChannelCue[] _channelCue = { _leftSteps, _leftDir, _rightSteps, _rightDir };
 
-		private int[] _leftPins = { 3, 24, 6 };
-		private int[] _rightPins = { 10, 11, 12 };
+		private int[] _leftPins = { Arduino.PIN_3, Arduino.PIN_4, Arduino.PIN_5 };
+		private int[] _rightPins = { Arduino.PIN_9, Arduino.PIN_10, Arduino.PIN_11 };
 
 		private final DRV8834[] _motors = new DRV8834[2];
 		private static final int SLEEP_MS = 2;
@@ -223,11 +224,11 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			_sequencer = ioio_.openSequencer(_channelConfig);
 
 			if (_uartEnable) {
-				_uart = ioio_.openUart(5, 4, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
+				_uart = ioio_.openUart(Arduino.PIN_0, Arduino.PIN_1, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
 				_uartServer = new UARTServer(_uart, this);
 				new Thread(_uartServer).start();
 			}
-			_IRSensor = ioio_.openAnalogInput(44); // A/D 4 shield
+			_IRSensor = ioio_.openAnalogInput(Arduino.PIN_AD4);
 		}
 
 		@Override
@@ -280,7 +281,11 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			int[] oscMsg = new int[11]; // buffer for incoming OSC packet
 			
 			try {
+				Log.e(_TAG, "I am LISTENING****");
+				
 				int inByte = inputStream.read();
+				
+				Log.e(_TAG, "I am RECEIVING TOO****");
 				
 				// An OSC address pattern is a string beginning with the character forward slash '/'
 				if (inByte == 47) {

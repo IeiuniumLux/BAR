@@ -40,7 +40,7 @@ public class DRV8834 {
 	STEP   -> IOIO:  7 / Shield: 6
 	DIR    -> IOIO: 18 / Shield: 7
 	
-	M0     -> IOIO: 10  / Shield: 9
+	M0     -> IOIO: 10 / Shield: 9
 	M1     -> IOIO: 11 / Shield: 10
 	SLEEP  -> IOIO: 12 / Shield: 11
 	STEP   -> IOIO: 13 / Shield: 12
