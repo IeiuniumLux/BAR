@@ -179,8 +179,8 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		// Declares which types of channels we are going to use and which pins they should be mapped to. The order of the channels
 		// in this array is important because it is used to define cues for those channels in the Sequencer.ChannelCue[] array.
 		// ---
-		private Sequencer.ChannelConfig[] _channelConfig = { new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(Arduino.PIN_6)), // LEFT STEP
-				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(Arduino.PIN_7)), // LEFT DIR
+		private Sequencer.ChannelConfig[] _channelConfig = { new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(Arduino.PIN_5)), // LEFT STEP
+				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(Arduino.PIN_6)), // LEFT DIR
 				new Sequencer.ChannelConfigFmSpeed(Sequencer.Clock.CLK_62K5, 2, new DigitalOutput.Spec(Arduino.PIN_12)), // RIGHT STEP
 				new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(Arduino.PIN_13)) // RIGHT DIR
 		};
@@ -202,7 +202,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		// ---
 		private Sequencer.ChannelCue[] _channelCue = { _leftSteps, _leftDir, _rightSteps, _rightDir };
 
-		private int[] _leftPins = { Arduino.PIN_3, Arduino.PIN_4, Arduino.PIN_5 };
+		private int[] _leftPins = { Arduino.PIN_2, Arduino.PIN_3, Arduino.PIN_4 };
 		private int[] _rightPins = { Arduino.PIN_9, Arduino.PIN_10, Arduino.PIN_11 };
 
 		private final DRV8834[] _motors = new DRV8834[2];
@@ -224,7 +224,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			_sequencer = ioio_.openSequencer(_channelConfig);
 
 			if (_uartEnable) {
-				_uart = ioio_.openUart(Arduino.PIN_0, Arduino.PIN_1, 9600, Uart.Parity.NONE, Uart.StopBits.ONE);
+				_uart = ioio_.openUart(Arduino.PIN_0, Arduino.PIN_1, 115200, Uart.Parity.NONE, Uart.StopBits.ONE);
 				_uartServer = new UARTServer(_uart, this);
 				new Thread(_uartServer).start();
 			}

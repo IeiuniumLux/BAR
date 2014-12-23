@@ -25,7 +25,7 @@
         <SwitchPreference
             android:defaultValue="false"
             android:key="ir_key"
-            android:title="Activate IR sensor" />
+            android:title="IR sensor" />
         <SwitchPreference
             android:defaultValue="false"
             android:disableDependentsState="true"

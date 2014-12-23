@@ -26,4 +26,16 @@ public class Arduino {
 	public static int PIN_AD5 = 45;
 	public static int PIN_SDA = 1;
 	public static int PIN_SCL = 2;
+	
+	/* 
+	31	PPSi, PPSo	Unmapped	
+	32	PPSi, PPSo	Unmapped	
+	34	PPSi, PPSo	Unmapped	
+	35	PPSi, PPSo	Unmapped	
+	36	PPSi, PPSo	Unmapped	
+	37	PPSi, PPSo	Unmapped	
+	38	PPSi, PPSo	Unmapped
+	
+	46	PPSi, PPSo	Unmapped
+	 */
 }
