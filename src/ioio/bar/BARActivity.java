@@ -281,11 +281,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			int[] oscMsg = new int[11]; // buffer for incoming OSC packet
 			
 			try {
-				Log.e(_TAG, "I am LISTENING****");
-				
 				int inByte = inputStream.read();
-				
-				Log.e(_TAG, "I am RECEIVING TOO****");
 				
 				// An OSC address pattern is a string beginning with the character forward slash '/'
 				if (inByte == 47) {
