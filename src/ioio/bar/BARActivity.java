@@ -63,7 +63,7 @@ import android.view.View;
 
 public class BARActivity extends IOIOActivity implements SensorEventListener, UDPListener {
 
-	private static final String _TAG = "BARActivity";
+	private static final String _TAG = BARActivity.class.getSimpleName();
 	private static final float DEGREES_RADIANS = 0.0174532925f; // Degrees to Radians
 	private static final float BALANCE_LIMIT = 0.610865238f; // Shutdown motors @ 35º
 
@@ -128,7 +128,6 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		super.onResume();
 		_sensorManager.registerListener(this, _rotationVectorSensor, SensorManager.SENSOR_DELAY_GAME);
 		_lastTimestamp = 0L;
-		_lastError = 0.0f;
 		_errorSum = 0.0f;
 		_throttle = 0.0f;
 		_steering = 0.0f;
@@ -252,7 +251,6 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 			} else {
 				_motors[0].setEnable(false);
 				_motors[1].setEnable(false);
-				_lastError = 0.0f;
 				_throttle = 0.0f;
 				_steering = 0.0f;
 				_proximity = 0.0f;
@@ -350,12 +348,12 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 
 	private float _kP = 1.49f;
 	private float _kI = 13.9f;
-	private float _kD = 0.35f;
+//	private float _kD = 0.35f;
 
 	private volatile float _tiltAngle = 0.0f;
 	private long _lastTimestamp = 0L;
 	private float _errorSum = 0.0f;
-	private float _lastError = 0.0f;
+//	private float _lastError = 0.0f;
 	private volatile float _controlOutput = 0.0f;
 	
 
@@ -400,14 +398,14 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		}
 	}
 
-	private float PID(float setpoint, float input, float kP, float kI, float kD, float dT) {
-		float error = setpoint - input;
-		_errorSum += 0.99f * error; // low-pass IIR filter
-		_errorSum = constrain(_errorSum, -1, 1);
-		float derivative = error - _lastError;
-		_lastError = error;
-		return (kP * error + kI * (_errorSum * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
-	}
+//	private float PID(float setpoint, float input, float kP, float kI, float kD, float dT) {
+//		float error = setpoint - input;
+//		_errorSum += 0.99f * error; // low-pass IIR filter
+//		_errorSum = constrain(_errorSum, -1, 1);
+//		float derivative = error - _lastError;
+//		_lastError = error;
+//		return (kP * error + kI * (_errorSum * dT * 1e-9f) + kD * (derivative / dT * 1e-9f));
+//	}
 	
 	private float PI(float setpoint, float input, float kP, float kI, float dT) {
 		float error = setpoint - input;
@@ -416,12 +414,12 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		return (kP * error + kI * (_errorSum * dT * 1e-9f));
 	}
 	
-	private float PD(float setpoint, float input, float kP, float kD, float dT) {
-		float error = setpoint - input;
-		float derivative = error - _lastError;
-		_lastError = error;
-		return (kP * error + kD * (derivative / dT * 1e-9f));
-	}
+//	private float PD(float setpoint, float input, float kP, float kD, float dT) {
+//		float error = setpoint - input;
+//		float derivative = error - _lastError;
+//		_lastError = error;
+//		return (kP * error + kD * (derivative / dT * 1e-9f));
+//	}
 
 	private float proximityDisplacement(float current, float previous, float kP, float kI) {
 		float displacement = current - previous;
