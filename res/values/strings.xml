@@ -4,7 +4,8 @@
     <string name="app_name">BAR</string>
     <string name="settings">Settings</string>
     <string name="degrees_offset">Degrees offset</string>
-	<string name="uart_quick_toggle_title">UART</string>
-	<string name="uart_quick_toggle_summary">Allow remote control via the WiFly shield</string>
-	<string name="udp_settings_title">UDP Settings</string>
+	<string name="uart_title">UART communication</string>
+	<string name="uart_summary">Allows device-to-device commnucation using the WiFly shield</string>
+	<string name="udp_settings_title">UDP connectionless</string>
+	<string name="udp_summary">Allows device-to-device commnucation within the same WiFi network</string>
 </resources>

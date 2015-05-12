@@ -29,12 +29,15 @@ import java.net.DatagramSocket;
 
 import android.util.Log;
 
+//---------------------------------------------------------------------------------------------------
+// This requires that the client and the server are in the same Wifi network (e.g. TouchOSC and BAR) 
+//---------------------------------------------------------------------------------------------------
 public class UDPServer implements Runnable {
 	public interface UDPListener {
 		public void onPacketReceived(DatagramPacket packet);
 	}
 	
-	private static final int DATAGRAM_SIZE = 1536;//32*1024;
+	private static final int DATAGRAM_SIZE = 1536;  // 32*1024;
 
 	private UDPListener _listener;
 	private int _port;

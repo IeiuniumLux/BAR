@@ -36,6 +36,21 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 
+
+/**
+ * Since we're developing for Android 3.0 (API level 11) and higher, we use a PreferenceFragment to display
+ * list of Preference objects. PreferenceFragment can be added to any activity so you don't need to use
+ * PreferenceActivity. Fragments provide a more flexible architecture so use PreferenceFragment to control
+ * the display of settings instead of PreferenceActivity when possible. Your implementation of PreferenceFragment
+ * can be as simple as defining the onCreate() method to load a preferences file with addPreferencesFromResource().
+ * 
+ * Note: A PreferenceFragment doesn't have a its own Context object. If you need a Context object, you can call
+ * getActivity(). However, be careful to call getActivity() only when the fragment is attached to an activity.
+ * When the fragment is not yet attached, or was detached during the end of its lifecycle, getActivity() will return null.
+ * 
+ * @author abencomo
+ *
+ */
 public class SettingsActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -96,7 +111,8 @@ public class SettingsActivity extends Activity {
 				pref.setSummary(editTextPref.getText());
 			}
 
-			getActivity().setResult(-1);
+			/** Standard activity result: operation succeeded. */
+			getActivity().setResult(Activity.RESULT_OK);
 		}
 	}
 }

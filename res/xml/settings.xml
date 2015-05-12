@@ -30,32 +30,31 @@
             android:defaultValue="false"
             android:disableDependentsState="true"
             android:key="toggle_uart"
-            android:summary="@string/uart_quick_toggle_summary"
-            android:title="@string/uart_quick_toggle_title" />
+            android:summary="@string/uart_summary"
+            android:title="@string/uart_title" />
 
         <PreferenceScreen
             android:dependency="toggle_uart"
             android:key="udp_settings"
+            android:summary="@string/udp_summary"
             android:title="@string/udp_settings_title" >
             <EditTextPreference
                 android:defaultValue="192.168.1.84"
-                android:dialogMessage="IP Address:"
+                android:dialogMessage="This field specifies the IP network address for this device."
                 android:dialogTitle="Set IP Address"
                 android:inputType="number|numberDecimal|text|textNoSuggestions"
                 android:key="ip_address"
                 android:singleLine="true"
-                android:title="IP Address" />
+                android:title="Device IP Network Address" />
             <EditTextPreference
                 android:defaultValue="2000"
-                android:dialogMessage="Port:"
-                android:dialogTitle="Set Destination Port"
+                android:dialogMessage="This field specifies the port number on which the device is configured to receive messages on."
+                android:dialogTitle="Set Incoming Port"
                 android:inputType="number"
                 android:key="port_number"
                 android:numeric="integer"
                 android:singleLine="true"
-                android:title="Port" />
-
-            <PreferenceScreen />
+                android:title="Port (Incoming)" />
         </PreferenceScreen>
     </PreferenceCategory>
 
