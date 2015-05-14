@@ -29,9 +29,15 @@ import java.net.DatagramSocket;
 
 import android.util.Log;
 
-//---------------------------------------------------------------------------------------------------
-// This requires that the client and the server are in the same Wifi network (e.g. TouchOSC and BAR) 
-//---------------------------------------------------------------------------------------------------
+/**
+ * This class handles device-to-device communication using the WiFi network router where both devices
+ * are connected. For instance, the device sending TouchOSC commands and the Android device running
+ * the BAR application, which is receiving those commands; are both connected to the same WiFi network. 
+ * 
+ * 
+ * @author abencomo
+ *
+ */
 public class UDPServer implements Runnable {
 	public interface UDPListener {
 		public void onPacketReceived(DatagramPacket packet);

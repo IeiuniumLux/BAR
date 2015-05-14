@@ -96,7 +96,7 @@ public class BARActivity extends IOIOActivity implements SensorEventListener, UD
 		_udpPort = Integer.valueOf(_sharedPreferences.getString("port_number", "2000"));
 
 		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-		_wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "BAR");
+		_wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BAR"); // it was using PowerManager.SCREEN_DIM_WAKE_LOCK before
 		_sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 		_rotationVectorSensor = _sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
 		_lastTimestamp = 0;
