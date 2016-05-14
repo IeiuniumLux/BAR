@@ -1,6 +1,9 @@
 Balancing Android Robot (BAR)
 =========
 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=xtMCmuR8uNU" target="_blank"><img src="http://img.youtube.com/vi/xtMCmuR8uNU/0.jpg" 
+alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+
 The computing power, sensing capabilities, and intuitive programming interfaces of the Android devices afford an inexpensive yet highly capable robotic platform. As a case in point, we created this two-wheeled dynamically balancing robot using a Nexus 4 device to control it. It consists of the following components:
 
 Nexus 4 with Android 4.4.4 (KitKat) 1.5 GHz Quad-Core 2 GB of RAM
@@ -28,6 +31,3 @@ Other possibly uses for the on-board Android device:
 - GPS / Wifi localization for navigation.
 - Use front camera for computer vision.
 - Use camera flash as strobe light.
-
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=xtMCmuR8uNU" target="_blank"><img src="http://img.youtube.com/vi/xtMCmuR8uNU/0.jpg" 
-alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
